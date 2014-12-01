@@ -116,6 +116,7 @@ class WordPadBot(TwitterBot):
         self.reply_to_tweet(tweet, prefix)
 
     def reply_to_tweet(self, tweet, prefix):
+        self.log("Generating response to {}".format(self._tweet_url(tweet)))
         blob = self.generate_image(get_image_blob(tweet))
 
         prefix += ' '
