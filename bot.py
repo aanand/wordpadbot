@@ -215,7 +215,7 @@ class WordPadBot(TwitterBot):
             if m.get('type') == 'photo':
                 yield m['media_url']
 
-        if tweet.in_reply_to_status_id:
+        while tweet.in_reply_to_status_id:
             tweet = self.api.get_status(tweet.in_reply_to_status_id)
 
             if '@'+self.screen_name in tweet.text:
