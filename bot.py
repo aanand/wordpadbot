@@ -215,14 +215,20 @@ class WordPadBot(TwitterBot):
             if m.get('type') == 'photo':
                 yield m['media_url']
 
+        self.log("No images in {} - checking for a reply chain".format(self._tweet_url(tweet)))
+
         while tweet.in_reply_to_status_id:
             tweet = self.api.get_status(tweet.in_reply_to_status_id)
 
             # don't glitch yourself mate
             if tweet.author.id == self.id:
+                self.log("Found my own tweet ({}) - stopping".format(self._tweet_url(tweet)))
                 return
 
+            # don't reply more than once if there are multiple CCs.
+            # probably overly cautious.
             if '@'+self.screen_name in tweet.text:
+                self.log("Found a mention of myself ({}) - stopping".format(self._tweet_url(tweet)))
                 return
 
             self.log("Climbing up to status {}".format(self._tweet_url(tweet)))
