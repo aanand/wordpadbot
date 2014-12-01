@@ -218,6 +218,9 @@ class WordPadBot(TwitterBot):
         while tweet.in_reply_to_status_id:
             tweet = self.api.get_status(tweet.in_reply_to_status_id)
 
+            if tweet.in_reply_to_user_id == self.id:
+                return
+
             if '@'+self.screen_name in tweet.text:
                 return
 
