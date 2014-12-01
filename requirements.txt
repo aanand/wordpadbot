@@ -4,3 +4,4 @@ sqlalchemy==0.9.7
 psycopg2==2.4.5
 arrow==0.4.2
 Pillow==2.6.1
+requests==2.4.3

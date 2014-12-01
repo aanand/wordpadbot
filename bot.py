@@ -9,6 +9,7 @@ from extensions.wordpad import wordpad
 from extensions.sql_storage import SQLStorage
 
 import arrow
+import requests
 
 import random
 import os
@@ -116,8 +117,14 @@ class WordPadBot(TwitterBot):
         self.reply_to_tweet(tweet, prefix)
 
     def reply_to_tweet(self, tweet, prefix):
-        self.log("Generating response to {}".format(self._tweet_url(tweet)))
-        blob = self.generate_image(get_image_blob(tweet))
+        self.log("Getting image blob for {}".format(self._tweet_url(tweet)))
+        blob = get_image_blob(tweet)
+        if blob is None:
+            self.log("Tweet no longer exists")
+            return
+
+        self.log("Generating response")
+        blob = self.generate_image(blob)
 
         prefix += ' '
         salutation = self.generate_salutation(tweet, 140-len(prefix))
@@ -204,7 +211,14 @@ def has_image(tweet):
 
 def get_image_blob(tweet):
     url = next(get_images(tweet))
-    return urllib.urlopen(url).read()
+
+    resp = requests.get(url)
+    if resp.status_code == 404:
+        return None
+    else:
+        resp.raise_for_status()
+
+    return resp.content
 
 
 # https://github.com/bobpoekert/spatchwork/blob/master/twitter.py
