@@ -87,26 +87,12 @@ class WordPadBot(TwitterBot):
         pass
 
     def on_mention(self, tweet, prefix):
-        if self._is_silent():
-            self.log("Silent mode is on. Not responding to {}".format(self._tweet_url(tweet)))
-            return
-
-        if not has_image(tweet):
-            return
-
         if not self.check_reply_threshold(tweet, prefix):
             return
 
         self.reply_to_tweet(tweet, prefix)
 
     def on_timeline(self, tweet, prefix):
-        if not has_image(tweet):
-            return
-
-        if self._is_silent():
-            self.log("Silent mode is on. Not responding to {}".format(self._tweet_url(tweet)))
-            return
-
         if not self.check_reply_threshold(tweet, prefix):
             return
 
@@ -118,9 +104,15 @@ class WordPadBot(TwitterBot):
 
     def reply_to_tweet(self, tweet, prefix):
         self.log("Getting image blob for {}".format(self._tweet_url(tweet)))
-        blob = get_image_blob(tweet)
-        if blob is None:
-            self.log("Tweet no longer exists")
+        blob = None
+
+        try:
+            blob = self.get_image_blob(tweet)
+        except NoImages:
+            self.log("Couldn't find any images")
+            return
+        except ImageNotFound:
+            self.log("Image URL returned a 404 - tweet was probably deleted")
             return
 
         self.log("Generating response")
@@ -129,6 +121,10 @@ class WordPadBot(TwitterBot):
         prefix += ' '
         salutation = self.generate_salutation(tweet, 140-len(prefix))
         text = '{}{}'.format(prefix, salutation)
+
+        if self._is_silent():
+            self.log("Silent mode is on. Would've responded to {} with {}".format(self._tweet_url(tweet), repr(text)))
+            return
 
         self.post_tweet(
             text,
@@ -200,35 +196,42 @@ class WordPadBot(TwitterBot):
             rotate=(random.random() <= self.config['rotate_probability']),
         )
 
+    def get_image_blob(self, tweet):
+        try:
+            url = next(self.get_images(tweet))
+        except StopIteration:
+            raise NoImages()
 
-def has_image(tweet):
-    try:
-        next(get_images(tweet))
-        return True
-    except StopIteration:
-        return False
+        resp = requests.get(url)
+        if resp.status_code == 404:
+            raise ImageNotFound()
+        else:
+            resp.raise_for_status()
+
+        return resp.content
+
+    def get_images(self, tweet):
+        for m in tweet.entities.get('media', []):
+            if m.get('type') == 'photo':
+                yield m['media_url']
+
+        if tweet.in_reply_to_status_id:
+            tweet = self.api.get_status(tweet.in_reply_to_status_id)
+
+            if '@'+self.screen_name in tweet.text:
+                return
+
+            self.log("Climbing up to status {}".format(self._tweet_url(tweet)))
+            for m in self.get_images(tweet):
+                yield m
 
 
-def get_image_blob(tweet):
-    url = next(get_images(tweet))
-
-    resp = requests.get(url)
-    if resp.status_code == 404:
-        return None
-    else:
-        resp.raise_for_status()
-
-    return resp.content
+class NoImages(Exception):
+    pass
 
 
-# https://github.com/bobpoekert/spatchwork/blob/master/twitter.py
-def get_images(tweet):
-    for media in tweet._json.get('entities', []).get('media', []):
-        if not media:
-            continue
-        for obj in media:
-            if media.get('type') == 'photo':
-                yield media['media_url']
+class ImageNotFound(Exception):
+    pass
 
 
 if __name__ == '__main__':
