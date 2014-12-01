@@ -376,9 +376,8 @@ class TwitterBot:
         """
         while True:
             
-            # check followers every 15 minutes
-            #if self.autofollow and (time.time() - self.last_follow_check) > (15 * 60): 
-            if (time.time() - self.state['last_follow_check']) > (15 * 60):
+            # check followers every 60 minutes
+            if (time.time() - self.state['last_follow_check']) > (60 * 60):
                 self._check_followers()
                 self._handle_followers()
 
