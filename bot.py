@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 
 from twitterbot import TwitterBot
+from tweepy.error import TweepError
 
 from extensions.wordpad import wordpad
 from extensions.sql_storage import SQLStorage
@@ -217,7 +218,11 @@ class WordPadBot(TwitterBot):
         self.log("No images in {} - checking for a reply chain".format(self._tweet_url(tweet)))
 
         while tweet.in_reply_to_status_id:
-            tweet = self.api.get_status(tweet.in_reply_to_status_id)
+            try:
+                tweet = self.api.get_status(tweet.in_reply_to_status_id)
+            except TweepError as e:
+                self.log("Error climbing the reply chain: {}".format(e))
+                return
 
             # don't glitch yourself mate
             if tweet.author.id == self.id:
