@@ -14,7 +14,6 @@ import requests
 import random
 import os
 import logging
-import urllib
 from io import BytesIO
 
 
